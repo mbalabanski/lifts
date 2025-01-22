@@ -16,7 +16,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
     metadata = {"render_modes": ['human', 'rgb_array', 'depth_array'], "render_fps": 100}
     bounds = np.array([[-5, -5, -5], [5, 5, 5]])
 
-    def __init__(self, xml_path = None, render_mode = None, frame_skip=1):
+    def __init__(self, xml_path = "./lifts/assets/quadrotor.xml", render_mode = None, frame_skip=1):
         
         self.target = self.generate_target_location()
 
@@ -25,13 +25,13 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         self.observation_space = spaces.Dict(
             {
                 # agent space is its xyz coordinates and its xyz velocities
-                "agent": spaces.Box(low=-np.inf, high=np.inf, shape=(6,1), dtype=float),
+                "agent": spaces.Box(low=-np.inf, high=np.inf, shape=(3,3), dtype=float),
                 
                 # payload space is the xyz coordinates of the payload and its xyz velocities
-                "payload": spaces.Box(low=-np.inf, high=np.inf, shape=(6,1), dtype=float),
+                "payload": spaces.Box(low=-np.inf, high=np.inf, shape=(3,3), dtype=float),
 
                 # target space is the xyz coordinates of the target
-                "target": spaces.Box(low=-np.inf, high=np.inf, shape=(3,1), dtype=float)
+                "target": spaces.Box(low=-np.inf, high=np.inf, shape=(3,), dtype=float)
             }
         )
 
@@ -80,7 +80,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         # box must have a contact force greater than tolerance for t time frames
         
 
-        ACCEPTED_CONTACT_FORCE_TOLERANCE = 14
+        ACCEPTED_CONTACT_FORCE_TOLERANCE = 20
 
         return self._get_contact_force() > ACCEPTED_CONTACT_FORCE_TOLERANCE
 
@@ -160,12 +160,23 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         # incentivize moving the box
 
         #  \
-        # - 1.0 * (agent_pos[2] - 2.0) ** 2 \
+        # 
+
+        # if np.linalg.norm(self._get_box_position() - self.target) < 0.9:
+        #     return 20.0
+        
+        # return 0
 
         return \
-              1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
-            - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2) \
-            - 0.1 * (np.linalg.norm(self._get_box_position() - self.target) ** 2)
+            + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
+            # - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
+            # - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
+            # - 1.0 * (agent_pos[2] - 2.0) ** 2 \
+            
+            
+            
+              
+            
 
     
     def reset_model(self):

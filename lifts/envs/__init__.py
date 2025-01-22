@@ -1,1 +1,1 @@
-from lifts.envs.base_env import LiftsEnv
+from lifts.envs.lifts_env import LiftsEnv
