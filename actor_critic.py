@@ -36,7 +36,7 @@ entropy_eps = 1e-4
 
 MAX_CONTROL_INPUT = 2.0
 
-RUN_EVAL = False
+RUN_EVAL = True
 
 render_mode = 'human' if RUN_EVAL else 'rgb_array'
 
@@ -141,9 +141,12 @@ def main():
 
 if __name__ == "__main__":
 
+    ACTOR_MODEL_PATH = "./models/ACTOR_MODEL.pkl"
+    CRITIC_MODEL_PATH = "./models/CRITIC_MODEL.pkl"
+
     if RUN_EVAL:
-        actor = torch.load("ACTOR_MODEL")
-        critic = torch.load("CRITIC_MODEL")
+        actor = torch.load(ACTOR_MODEL_PATH)
+        critic = torch.load(CRITIC_MODEL_PATH)
 
         actor.eval()
         critic.eval()
@@ -151,6 +154,8 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
+        pass
+    finally:
         # save models
-        torch.save(actor, 'ACTOR_MODEL')
-        torch.save(critic, "CRITIC_MODEL")
+        torch.save(actor, ACTOR_MODEL_PATH)
+        torch.save(critic, CRITIC_MODEL_PATH)

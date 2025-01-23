@@ -10,7 +10,7 @@ from stable_baselines3.common.env_util import make_vec_env
 # Parallel environments
 vec_env = make_vec_env("lifts/QuadRotor-v0", n_envs=4)
 
-model = PPO("MlpPolicy", vec_env, verbose=1)
+model = PPO("MultiInputPolicy", vec_env, verbose=1)
 model.learn(total_timesteps=25000)
 model.save("ppo_cartpole")
 
@@ -29,7 +29,7 @@ while True:
         # select action from policy
         action, _ = model.predict(np.array(obs))
 
-        action = np.array(action)
+        action = np.array(action).flatten()
 
         # take the action
         obs, reward, done, _, _ = env.step(action)
