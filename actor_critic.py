@@ -71,14 +71,17 @@ class Policy(nn.Module):
 model = Policy()
 optimizer = optim.Adam(model.parameters(), lr=3e-2)
 eps = np.finfo(np.float32).eps.item()
-epsilon = 0.10
-def select_action(state):
+
+
+def select_action(state, epsilon):
     state = np.concatenate((state["agent"], state["payload"])).flatten()
     state = torch.from_numpy(state).float()
     
     action, state_value = model(state)
     if np.random.rand() < epsilon:
         action = torch.from_numpy(env.action_space.sample()).float().flatten()
+
+    
     # make sure action fits action space
     action = torch.clamp(action, 0, MAX_CONTROL_INPUT)
     # save to action buffer
@@ -117,8 +120,12 @@ def finish_episode():
     # reset rewards and action buffer
     del model.rewards[:]
     del model.saved_actions[:]
+
+
 def main():
     running_reward = 10
+    epsilon = 0.99
+    epsilon_loss = (1 - 0.01)
     # run infinitely many episodes
     for i_episode in count(1):
         # reset environment and episode reward
@@ -128,7 +135,7 @@ def main():
         # infinite loop while learning
         for t in range(1, 10000):
             # select action from policy
-            action = select_action(state)
+            action = select_action(state, epsilon)
             # take the action
             state, reward, done, _, _ = env.step(action)
             model.rewards.append(reward)
@@ -143,10 +150,7 @@ def main():
         if i_episode % 100 == 0:
             print('Episode {}\tLast reward: {:.2f}\tAverage reward: {:.2f}'.format(
                   i_episode, ep_reward, running_reward))
-        # check if we have "solved" the cart pole problem
-        # if running_reward > env.spec.reward_threshold:
-        #     print("Solved! Running reward is now {} and "
-        #           "the last episode runs to {} time steps!".format(running_reward, t))
-        #     break
+        
+        epsilon *= epsilon_loss
 if __name__ == '__main__':
     main()
