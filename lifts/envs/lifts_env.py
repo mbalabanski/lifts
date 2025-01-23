@@ -168,7 +168,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         # return 0
 
         return \
-            + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
+            -1.2 * (agent_pos[2] - 3.0) ** 2 + 0.4 * self.t
+            # + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
             # - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
             # - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
             # - 1.0 * (agent_pos[2] - 2.0) ** 2 \
@@ -191,6 +192,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
             np.zeros((12,))
         )
         self.has_taken_off = False
+        self.t = 0
 
         return self._get_obs()
 
@@ -200,6 +202,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         
         if self.render_mode == 'human':
             self.render()
+
+        self.t += 1
 
         self._step_mujoco_simulation(action, 1)
 
