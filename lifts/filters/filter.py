@@ -15,7 +15,7 @@ class Filter(ABC):
     action_filter = False
 
     @abstractmethod
-    def apply(state_input: NDArray) -> NDArray:
+    def apply(self, input: NDArray) -> NDArray:
         '''
         Applies a filter to the desired space.
         '''
