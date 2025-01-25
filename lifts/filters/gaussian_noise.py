@@ -1,6 +1,8 @@
-from filter import Filter
+from lifts.filters.filter import Filter
 
 import numpy as np
+from numpy.typing import NDArray
+from typing import Dict
 
 class GaussianNoise(Filter):
 
@@ -11,5 +13,9 @@ class GaussianNoise(Filter):
 
         self.stddev = stddev
 
-    def apply(self, input):
-        return np.random.normal(input, np.ones_like(input) * self.stddev)
+    def apply(self, input: Dict[str, NDArray]):
+
+        for key in input.keys():
+            input[key] = np.random.normal(input[key], np.ones_like(input[key]) * self.stddev)
+
+        return input

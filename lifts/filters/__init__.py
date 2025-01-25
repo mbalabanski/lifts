@@ -1,3 +1,3 @@
-from filter import *
-from gaussian_noise import *
-from motor_noise import *
+from lifts.filters.filter import *
+from lifts.filters.gaussian_noise import *
+from lifts.filters.motor_noise import *

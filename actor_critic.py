@@ -2,6 +2,7 @@ from collections import namedtuple
 from itertools import count
 import gymnasium
 import lifts
+import lifts.filters
 import numpy as np
 import torch
 import torch.nn as nn
@@ -30,8 +31,16 @@ gamma = 0.99
 lmbda = 0.95
 entropy_eps = 1e-4
 MAX_CONTROL_INPUT = 1.5
-env = gymnasium.make('lifts/QuadRotor-v0', xml_path="./lifts/assets/quadrotor.xml", render_mode='human')
+
+filters = [
+    lifts.filters.GaussianNoise(0.1)
+]
+
+env = gymnasium.make('lifts/QuadRotor-v0', xml_path="./lifts/assets/quadrotor.xml", render_mode='human', filters=filters)
 SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
+
+
+
 class Policy(nn.Module):
     """
     implements both actor and critic in one model
