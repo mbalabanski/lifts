@@ -1,6 +1,10 @@
 import gymnasium.spaces as spaces
 from gymnasium.envs.mujoco import mujoco_env
 
+from typing import List
+from ..filters import Filter
+
+
 import mujoco
 
 import numpy as np
@@ -16,7 +20,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
     metadata = {"render_modes": ['human', 'rgb_array', 'depth_array'], "render_fps": 100}
     bounds = np.array([[-5, -5, -5], [5, 5, 5]])
 
-    def __init__(self, xml_path = "./lifts/assets/quadrotor.xml", render_mode = None, frame_skip=1):
+    def __init__(self, xml_path = "./lifts/assets/quadrotor.xml", render_mode = None, frame_skip=1, filters: List[Filter]=[]):
         
         self.target = self.generate_target_location()
 
@@ -44,6 +48,17 @@ class LiftsEnv(mujoco_env.MujocoEnv):
 
         self.has_taken_off = False
         self.t = 0
+
+        # split filters into action and state filters
+        self.action_filters = []
+        self.state_filters = []
+
+        for filter in filters:
+            if filter.action_filter:
+                self.action_filters.append(filter)
+
+            if filter.state_filter:
+                self.state_filters.append(filter)
         
     def get_sensor_data(self):
         return self.data.sensordata
