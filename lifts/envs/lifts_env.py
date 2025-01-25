@@ -50,8 +50,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         self.t = 0
 
         # split filters into action and state filters
-        self.action_filters = []
-        self.state_filters = []
+        self.action_filters: List[Filter] = []
+        self.state_filters: List[Filter] = []
 
         for filter in filters:
             if filter.action_filter:
@@ -213,7 +213,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
 
     def step(self, action):
         
-        #action_as_motor_controls = lifts.core.physics.thrust_angular_velocities_to_motor_actuator(action)
+        for filter in self.action_filters:
+            action = filter.apply(action)
         
         if self.render_mode == 'human':
             self.render()
@@ -227,5 +228,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         terminated = self.has_terminated()
         truncated = False
         info = self._get_info()
+
+        for filter in self.state_filters:
+            observation = filter.apply(observation)
 
         return observation, reward, terminated, truncated, info
