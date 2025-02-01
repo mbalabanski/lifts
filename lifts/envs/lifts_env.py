@@ -183,7 +183,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         # return 0
 
         return \
-            -40.0 * (agent_pos[2] - 3.0) ** 2 + 0.4 * self.t
+            - (np.linalg.norm(agent_pos - np.array([0, 0, 3]))) ** 2
             # + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
             # - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
             # - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
