@@ -43,7 +43,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
 
         self.render_mode = render_mode
 
-        # action space is the thrust and pitch, roll, and yaw rates
+        # action space is motor actuator values
         self.action_space = spaces.Box(low=0, high=1.5, shape=(4,1), dtype=float)
 
         self.has_taken_off = False
@@ -59,6 +59,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
 
             if filter.state_filter:
                 self.state_filters.append(filter)
+
+        self._prev_box_distance = None
         
     def get_sensor_data(self):
         return self.data.sensordata
@@ -142,7 +144,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         Should check for grid bounds, payload placement, and if drone has flipped over or stopped.
         """
         # check for planted box
-        has_box_lifted = self.is_box_planted()
+        has_box_lifted = not self.is_box_planted()
         
         if not has_box_lifted and self.has_taken_off:
             return True # box has been planted
@@ -169,30 +171,17 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         Calculate the reward for the current state.
         """
         # try different weights
-        contact_force = self._get_contact_force()
         agent_pos = self._get_agent_position()
 
         # incentivize moving the box
 
-        #  \
-        # 
-
-        # if np.linalg.norm(self._get_box_position() - self.target) < 0.9:
-        #     return 20.0
-        
-        # return 0
+        self._prev_box_distance
 
         return \
-            - (np.linalg.norm(agent_pos - np.array([0, 0, 3]))) ** 2
-            # + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
-            # - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
-            # - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
-            # - 1.0 * (agent_pos[2] - 2.0) ** 2 \
-            
-            
-            
-              
-            
+            + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
+            - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
+            - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
+            - 5.0 * (agent_pos[2] - 2.0) ** 2 \
 
     
     def reset_model(self):
@@ -208,6 +197,8 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         )
         self.has_taken_off = False
         self.t = 0
+
+        self._prev_box_distance = None
 
         return self._get_obs()
 
