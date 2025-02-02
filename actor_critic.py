@@ -10,36 +10,27 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch import multiprocessing
 from torch.distributions.bernoulli import Bernoulli
+
 is_fork = multiprocessing.get_start_method() == "fork"
+
 device = (
     torch.device(0)
     if torch.cuda.is_available() and not is_fork
     else torch.device("cpu")
 )
-num_cells = 256  # number of cells in each layer i.e. output dim.
-lr = 3e-7
-max_grad_norm = 1.0
-frames_per_batch = 1000
-# For a complete training, bring the number of frames up to 1M
-total_frames = 50_000
-sub_batch_size = 64  # cardinality of the sub-samples gathered from the current data in the inner loop
-num_epochs = 10  # optimization steps per batch of data collected
-clip_epsilon = (
-    0.2  # clip value for PPO loss: see the equation in the intro for more context.
-)
+
+lr = 3e-3
+
 gamma = 0.99
-lmbda = 0.95
-entropy_eps = 1e-4
+
 MAX_CONTROL_INPUT = 1.5
 
 filters = [
-    lifts.filters.GaussianNoise(0.1)
+    # lifts.filters.GaussianNoise(0.1)
 ]
 
 env = gymnasium.make('lifts/QuadRotor-v0', xml_path="./lifts/assets/quadrotor.xml", render_mode='human', filters=filters)
-SavedAction = namedtuple('SavedAction', ['log_prob', 'value'])
-
-
+SavedAction = namedtuple('SavedAction', ['dist', 'log_prob', 'value'])
 
 class Policy(nn.Module):
     """
@@ -88,70 +79,89 @@ class Policy(nn.Module):
         return actions, state_values
     
 model = Policy(action_dim=4)
-optimizer = optim.Adam(model.parameters(), lr=3e-2)
+optimizer = optim.Adam(model.parameters(), lr=lr)
 eps = np.finfo(np.float32).eps.item()
 
 
 def select_action(state):
-    state = np.concatenate((state["agent"], state["payload"])).flatten()
+    state = np.concatenate((state["agent"].flatten(), state["payload"].flatten(), state["target"].flatten()), axis=0)
     state = torch.from_numpy(state).float()
     
     action_dist_params, state_value = model(state)
 
-    action = torch.distributions.Normal(action_dist_params[0], action_dist_params[1]).sample().flatten()
-    
+    action_dist = torch.distributions.Normal(action_dist_params[0], action_dist_params[1])
+
+    action = action_dist.sample().flatten()
     
     # smooth action to fit space
     action = torch.tanh(action) # fits to (-1, 1)
     action = MAX_CONTROL_INPUT * (action + 1) / 2 # fits to action space
 
     # save to action buffer
-    model.saved_actions.append(SavedAction(action, state_value))
+    model.saved_actions.append(SavedAction(action_dist, log_prob=action_dist_params[1], value=state_value))
 
     # the action to take (left or right)
     return action.detach().numpy()
 
 
-def finish_episode():
+def finish_episode(gamma=0.99, gae_lambda=0.95):
     """
-    Training code. Calculates actor and critic loss and performs backprop.
+    Compute the returns and advantages using Generalized Advantage Estimation (GAE)
+    and then perform a policy update.
     """
-    R = 0
-    saved_actions = model.saved_actions
-    policy_losses = [] # list to save actor (policy) loss
-    value_losses = [] # list to save critic (value) loss
-    returns = [] # list to save the true values
-    # calculate the true value using rewards returned from the environment
-    for r in model.rewards[::-1]:
-        # calculate the discounted value
-        R = r + gamma * R
-        returns.insert(0, R)
+    saved_actions = model.saved_actions  # List of SavedAction tuples (log_prob, value)
+    rewards = model.rewards
+
+    # Extract the values predicted by the critic for each state.
+    # Ensure these are stored as scalars.
+    values = [action.value.item() for action in saved_actions]
     
-    returns = torch.tensor(returns)
-    returns = (returns - returns.mean()) / (returns.std() + eps)
+    # If the episode ended (i.e. terminal state), we assume the value of the terminal state is 0.
+    # Otherwise, if you're bootstrapping from the last state, set next_value accordingly.
+    # Here we assume episode termination:
+    values.append(0)
 
-    for (log_prob, value), R in zip(saved_actions, returns):
-        advantage = R - value.item()
-        # calculate actor (policy) loss
-        policy_losses.append(-log_prob * advantage)
-        # calculate critic (value) loss using L1 smooth loss
-        value_losses.append(F.smooth_l1_loss(value, torch.tensor([R])))
+    # Initialize containers for advantages and returns.
+    gae = 0
+    advantages = []
+    returns = []
 
-    # reset gradients
+    # Iterate in reverse to compute GAE:
+    for t in reversed(range(len(rewards))):
+        # Compute delta: TD error at time t.
+        delta = rewards[t] + gamma * values[t+1] - values[t]
+        gae = delta + gamma * gae_lambda * gae
+        advantages.insert(0, gae)
+        # The return is advantage plus the value estimate.
+        returns.insert(0, gae + values[t])
+
+    # Convert lists to tensors and standardize the advantages if desired.
+    advantages = torch.tensor(advantages, dtype=torch.float32)
+    returns = torch.tensor(returns, dtype=torch.float32)
+
+    advantages = (advantages - advantages.mean()) / (advantages.std() + 1e-8)
+
+    # Compute the policy loss and the value loss.
+    policy_losses = []
+    value_losses = []
+
+    for (saved_action, R, advantage) in zip(saved_actions, returns, advantages):
+        # Note: saved_action.log_prob should be the log probability of the action that was taken.
+        policy_losses.append(-saved_action.log_prob * advantage)
+        value_losses.append(F.smooth_l1_loss(saved_action.value, torch.tensor([R])))
+
     optimizer.zero_grad()
-    # sum up all the values of policy_losses and value_losses
+
     loss = torch.stack(policy_losses).sum() + torch.stack(value_losses).sum()
-    # perform backprop
     loss.backward()
     optimizer.step()
-    # reset rewards and action buffer
+
+    # Clean up buffers.
     del model.rewards[:]
     del model.saved_actions[:]
 
-
 def main():
-    running_reward = 10
-    epsilon_loss = (1 - 0.01)
+    running_reward = 0
     
     # run infinitely many episodes
     for i_episode in count(1):
@@ -186,4 +196,17 @@ def main():
         
 
 if __name__ == '__main__':
-    main()
+
+    use_existing_model = False
+    model_path = './models/actor_critic.pkl'
+
+    if use_existing_model:
+        model = torch.load(model_path, weights_only=False)
+        model.eval()
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
+
+    torch.save(model, model_path)
