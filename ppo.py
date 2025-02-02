@@ -12,11 +12,11 @@ vec_env = make_vec_env("lifts/QuadRotor-v0", n_envs=4)
 
 model = PPO("MultiInputPolicy", vec_env, verbose=1)
 model.learn(total_timesteps=25000)
-model.save("ppo_cartpole")
+model.save("ppo_quadrotor")
 
 del model # remove to demonstrate saving and loading
 
-model = PPO.load("ppo_cartpole")
+model = PPO.load("ppo_quadrotor")
 
 env = gym.make("lifts/QuadRotor-v0", render_mode="human")
 
