@@ -1,5 +1,5 @@
 __pycache__/
 .vscode/
-models/*.pkl
+saved_models/*.pkl
 
 stable_baselines_ppo.py
