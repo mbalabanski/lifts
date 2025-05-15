@@ -44,7 +44,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         self.render_mode = render_mode
 
         # action space is motor actuator values
-        self.action_space = spaces.Box(low=0, high=1.5, shape=(4,1), dtype=float)
+        self.action_space = spaces.Box(low=0, high=3.0, shape=(4,1), dtype=float)
 
         self.has_taken_off = False
         self.t = 0
@@ -173,15 +173,17 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         # try different weights
         agent_pos = self._get_agent_position()
 
-        # incentivize moving the box
+        self.current_distance = np.linalg.norm(self._get_box_position() - self.target)
 
-        self._prev_box_distance
+        # penalize agent going completely opposite direction
+        if agent_pos[0] < 0:
+            return -1.0
+        
+        # incentivize moving box towards goal only when it is lifted
+        if not self.is_box_planted():
+            return 1 / (np.exp(self.current_distance) + 1e-1)
 
-        return \
-            + 1.5 * np.linalg.norm(self._get_box_position()) ** 2 \
-            - (np.linalg.norm(self._get_box_position() - self.target) ** 2) \
-            - 0.2 * (np.linalg.norm(self._get_obs()["agent"][2]) ** 2)  \
-            - 5.0 * (agent_pos[2] - 2.0) ** 2 \
+        return 0.0
 
     
     def reset_model(self):
@@ -201,6 +203,10 @@ class LiftsEnv(mujoco_env.MujocoEnv):
         self._prev_box_distance = None
 
         return self._get_obs()
+    
+    def _step_mujoco_simulation(self, ctrl, n_frames):
+        ctrl = ctrl.flatten()
+        return super()._step_mujoco_simulation(ctrl, n_frames)
 
     def step(self, action):
         
@@ -222,5 +228,7 @@ class LiftsEnv(mujoco_env.MujocoEnv):
 
         for filter in self.state_filters:
             observation = filter.apply(observation)
+
+        #self._prev_box_distance = self.current_distance
 
         return observation, reward, terminated, truncated, info

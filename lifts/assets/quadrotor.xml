@@ -76,10 +76,10 @@ Adapted from https://github.com/adipandas/gym_multirotor/blob/main/gym_multiroto
     </tendon>
 
     <actuator>
-        <motor ctrllimited="true" ctrlrange="0 2.0" gear="0 0 1 0 0 .1" site="motor_back_left" name="actuator_back_left" />
-        <motor ctrllimited="true" ctrlrange="0 2.0" gear="0 0 1 0 0 -.1" site="motor_back_right" name="actuator_back_right"/>
-        <motor ctrllimited="true" ctrlrange="0 2.0" gear="0 0 1 0 0 .1" site="motor_front_right" name="actuator_front_right"/>
-        <motor ctrllimited="true" ctrlrange="0 2.0" gear="0 0 1 0 0 -.1" site="motor_front_left" name="actuator_front_left"/>
+        <motor ctrllimited="true" ctrlrange="0 2.5" gear="0 0 1 0 0 .1" site="motor_back_left" name="actuator_back_left" />
+        <motor ctrllimited="true" ctrlrange="0 2.5" gear="0 0 1 0 0 -.1" site="motor_back_right" name="actuator_back_right"/>
+        <motor ctrllimited="true" ctrlrange="0 2.5" gear="0 0 1 0 0 .1" site="motor_front_right" name="actuator_front_right"/>
+        <motor ctrllimited="true" ctrlrange="0 2.5" gear="0 0 1 0 0 -.1" site="motor_front_left" name="actuator_front_left"/>
     </actuator>
 
     <sensor>
